@@ -77,6 +77,46 @@ const navigradData = {
     'Lawyer': { programs: ['Law', 'Political Science'], universities: ['toronto', 'western', 'queens'], salary: '$80k-150k+' },
     'Psychologist': { programs: ['Psychology'], universities: ['western', 'toronto', 'york'], salary: '$75k-95k' },
     'Data Scientist': { programs: ['Data Science', 'Statistics', 'Computer Science'], universities: ['waterloo', 'toronto', 'mcmaster'], salary: '$85k-130k' }
+  },
+  tools: {
+    careerFinder: { name: 'Career Finder', url: 'https://www.navigrad.ca/career-finder', description: 'Discover careers that match your interests and skills' },
+    startPage: { name: 'Start Page', url: 'https://www.navigrad.ca/start', description: 'Begin your post-secondary journey' },
+    myBlueprint: { name: 'MyBlueprint', url: 'https://www.navigrad.ca/myblueprint', description: 'Career and education planning tool' },
+    careerPathExplorer: { name: 'Career Path Explorer', url: 'https://www.navigrad.ca/career-path-explorer', description: 'Explore different career pathways' },
+    aiChatbots: { name: 'Best AI Chatbots', url: 'https://www.navigrad.ca/best-ai-chatbots', description: 'AI tools to help with studying and research' },
+    futureSkillsArena: { name: 'Future Skills Arena', url: 'https://www.navigrad.ca/future-skills-arena', description: 'Learn about in-demand skills for the future' }
+  },
+  studentResources: {
+    scholarships: { name: 'Scholarships', url: 'https://www.navigrad.ca/scholarships', description: 'Find scholarships and financial aid opportunities' },
+    studentLoans: { name: 'Student Loans', url: 'https://www.navigrad.ca/student-loans', description: 'Learn about OSAP and student loan options' },
+    spc: { name: 'SPC Card', url: 'https://www.navigrad.ca/spc', description: 'Student Price Card discounts and benefits' },
+    extracurriculars: { name: 'Extracurriculars', url: 'https://www.navigrad.ca/extracurriculars', description: 'Clubs, sports, and activities to enhance your application' }
+  },
+  preparationGuides: {
+    gettingReady: { name: 'Getting Ready for University', url: 'https://www.navigrad.ca/getting-ready-for-university', description: 'Essential preparation tips' },
+    universityEssentials: { name: 'University Essentials', url: 'https://www.navigrad.ca/university-essentials', description: 'Must-have items for university life' },
+    universityExtras: { name: 'University Extras', url: 'https://www.navigrad.ca/university-extras', description: 'Nice-to-have items to enhance your experience' },
+    skillsToKnow: { name: 'Skills To Know', url: 'https://www.navigrad.ca/skills-to-know', description: 'Essential skills for success' },
+    interviewSkills: { name: 'Interview Skills', url: 'https://www.navigrad.ca/interview-skills', description: 'Ace your university and job interviews' },
+    importantSkills: { name: 'Important Skills', url: 'https://www.navigrad.ca/important-skills', description: 'Key competencies for academic and career success' }
+  },
+  earningMoney: {
+    sideHustles: { name: 'Side Hustles', url: 'https://www.navigrad.ca/side-hustles', description: 'Ways to earn money while studying' },
+    employment: { name: 'Employment', url: 'https://www.navigrad.ca/employment', description: 'Part-time and full-time job opportunities' },
+    coopInternships: { name: 'Co-op & Internships', url: 'https://www.navigrad.ca/coop-internships', description: 'Gain work experience through co-op and internship programs' }
+  },
+  programs: {
+    universityPrograms: { name: 'University Programs', url: 'https://www.navigrad.ca/university-programs', description: 'Browse programs by field of study' },
+    collegePrograms: { name: 'College Programs', url: 'https://www.navigrad.ca/college-programs', description: 'Explore college diploma and certificate programs' },
+    universityXCollege: { name: 'University X College Programs', url: 'https://www.navigrad.ca/university-x-college', description: 'Combined university-college pathways' }
+  },
+  applicationTools: {
+    applicationSoftwares: { name: 'Application Softwares', url: 'https://www.navigrad.ca/application-softwares', description: 'OUAC, college applications, and other platforms' },
+    startingLinkedIn: { name: 'Starting LinkedIn', url: 'https://www.navigrad.ca/starting-linkedin', description: 'Build your professional network' }
+  },
+  informationalPages: {
+    about: { name: 'About NaviGrad', url: 'https://www.navigrad.ca/about', description: 'Learn about NaviGrad and our mission' },
+    universityDefense: { name: 'New University Defense', url: 'https://www.navigrad.ca/new-university-defense', description: 'Tips for adapting to university life' }
   }
 };
 
@@ -103,12 +143,29 @@ CAPABILITIES:
 4. Recommend schools based on student interests and goals
 5. Direct students to specific NaviGrad pages when relevant
 6. Remember and reference earlier parts of the conversation
+7. Help students find scholarships, student loans, and financial aid (studentResources)
+8. Guide students on university preparation and essential skills (preparationGuides)
+9. Provide information on earning money through side hustles, employment, and co-ops (earningMoney)
+10. Direct students to career exploration tools like Career Finder and Career Path Explorer (tools)
+11. Help with application processes using OUAC and LinkedIn guides (applicationTools)
+12. Recommend university programs, college programs, and combined pathways (programs)
+
+RESOURCE CATEGORIES YOU HAVE ACCESS TO:
+- **Universities**: 19 Ontario universities with details
+- **Tools**: Career Finder, MyBlueprint, Career Path Explorer, AI Chatbots, Future Skills Arena
+- **Student Resources**: Scholarships, Student Loans, SPC Card, Extracurriculars
+- **Preparation Guides**: Getting Ready for University, University Essentials, Skills to Know, Interview Skills
+- **Earning Money**: Side Hustles, Employment, Co-op & Internships
+- **Programs**: University Programs, College Programs, University X College Programs
+- **Application Tools**: Application Softwares, Starting LinkedIn
+- **Careers**: 9 different career paths with program and university recommendations
 
 LINK RULES:
 - Provide a NaviGrad link when it's relevant and helpful
 - Don't force a link into every response
 - If answering a general question (like "who founded Waterloo?"), just answer it naturally
-- If the student wants to learn more about a specific university, program, or career, THEN provide a link
+- If the student wants to learn more about a specific university, program, career, OR needs help with scholarships, applications, career exploration, preparation, etc., THEN provide the appropriate link
+- Use the new resource categories (tools, studentResources, preparationGuides, earningMoney, programs, applicationTools) to provide comprehensive guidance
 
 Available NaviGrad Resources:
 ${JSON.stringify(navigradData, null, 2)}
