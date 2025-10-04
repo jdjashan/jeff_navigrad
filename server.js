@@ -180,7 +180,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Initialize the model - UPDATED to gemini-2.0-flash-exp
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Build conversation context - include MORE history for better context
     let prompt = `${JEFF_SYSTEM_PROMPT}\n\n`;
@@ -275,5 +275,6 @@ app.listen(PORT, () => {
   console.log(`📝 Test the API: http://localhost:${PORT}/api/health`);
   console.log(`⏱️  Rate limit: ${RATE_LIMIT.maxRequests} requests per minute`);
 });
+
 
 module.exports = app;
