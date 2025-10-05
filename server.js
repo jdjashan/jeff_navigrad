@@ -457,7 +457,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         const response = result.response;
 
         // Check if there are function calls
-        const functionCalls = response.functionCalls();
+        const functionCalls = response.functionCalls;
 
         if (functionCalls && functionCalls.length > 0) {
           functionCallAttempts++;
