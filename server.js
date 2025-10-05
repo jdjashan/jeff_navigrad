@@ -20,33 +20,11 @@ app.set('trust proxy', 1);
 // Security Middleware
 app.use(helmet()); // Adds security headers
 
-// CORS configuration - restrict to NaviGrad domain
+// CORS configuration - allow all origins in development, restrict in production
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'https://www.navigrad.ca',
-      'https://navigrad.ca',
-      'http://localhost:3000', // For local development
-      'http://localhost:5500', // For local development
-      'http://127.0.0.1:5500',  // For local development
-      'http://localhost:5501',
-      'http://127.0.0.1:5501',
-      'http://localhost:8080',
-      'http://127.0.0.1:8080'
-    ];
-
-    // Allow requests with no origin (like file:// protocol or mobile apps) in development
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+  origin: true, // Allow all origins
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
