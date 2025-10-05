@@ -2,39 +2,107 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Trust proxy - needed for correct IP detection behind reverse proxies
+app.set('trust proxy', 1);
+
+// Security Middleware
+app.use(helmet()); // Adds security headers
+
+// CORS configuration - restrict to NaviGrad domain
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://www.navigrad.ca',
+      'https://navigrad.ca',
+      'http://localhost:3000', // For local development
+      'http://localhost:5500', // For local development
+      'http://127.0.0.1:5500'  // For local development
+    ];
+
+    // Allow requests with no origin (like mobile apps or curl requests) in development
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
+// Body parsing with size limits
+app.use(express.json({ limit: '10kb' })); // Limit request body to 10kb
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Sanitize data against NoSQL injection
+app.use(mongoSanitize());
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Rate limiting - track requests per IP
-const requestTracker = new Map();
-const RATE_LIMIT = {
-  windowMs: 60000, // 1 minute
-  maxRequests: 20   // 20 requests per minute
-};
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const userRequests = requestTracker.get(ip) || [];
-  
-  // Remove old requests outside the time window
-  const recentRequests = userRequests.filter(timestamp => now - timestamp < RATE_LIMIT.windowMs);
-  
-  if (recentRequests.length >= RATE_LIMIT.maxRequests) {
-    return false; // Rate limit exceeded
+// Rate limiting using express-rate-limit (more secure, prevents IP spoofing)
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per minute
+  message: {
+    error: 'Rate limit exceeded',
+    message: 'Whoa there! You\'re asking questions too fast! 😅 Give me a moment to catch my breath. Try again in a minute!',
+    link: null
+  },
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Use a secure key generator that can't be spoofed
+  keyGenerator: (req) => {
+    // Use the real IP from trusted proxy
+    return req.ip || req.connection.remoteAddress;
   }
-  
-  recentRequests.push(now);
-  requestTracker.set(ip, recentRequests);
-  return true;
+});
+
+// Input sanitization function
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return '';
+
+  // Remove potential prompt injection attempts
+  const cleaned = input
+    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .trim()
+    .substring(0, 1000); // Max 1000 chars
+
+  return cleaned;
+}
+
+// Validate conversation history
+function validateConversationHistory(history) {
+  if (!Array.isArray(history)) return [];
+
+  return history
+    .slice(-10) // Only keep last 10 messages
+    .filter(msg => {
+      return msg &&
+             typeof msg === 'object' &&
+             typeof msg.role === 'string' &&
+             typeof msg.content === 'string' &&
+             (msg.role === 'user' || msg.role === 'assistant');
+    })
+    .map(msg => ({
+      role: msg.role,
+      content: sanitizeInput(msg.content)
+    }));
 }
 
 // NaviGrad Database
@@ -218,41 +286,41 @@ Response: {
 }`;
 
 // Chat endpoint with rate limiting
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatLimiter, async (req, res) => {
   try {
     const { message, conversationHistory = [] } = req.body;
-    const userIp = req.ip || req.connection.remoteAddress;
 
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Valid message is required' });
     }
 
-    // Check rate limit
-    if (!checkRateLimit(userIp)) {
-      return res.status(429).json({ 
-        error: 'Rate limit exceeded',
-        message: 'Whoa there! You\'re asking questions too fast! 😅 Give me a moment to catch my breath. Try again in a minute!',
-        link: null
-      });
+    // Sanitize user input
+    const sanitizedMessage = sanitizeInput(message);
+
+    if (!sanitizedMessage || sanitizedMessage.length === 0) {
+      return res.status(400).json({ error: 'Message cannot be empty' });
     }
+
+    // Validate and sanitize conversation history
+    const validatedHistory = validateConversationHistory(conversationHistory);
 
     // Initialize the model - UPDATED to gemini-2.0-flash-exp
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    // Build conversation context - include MORE history for better context
+    // Build conversation context - use validated history
     let prompt = `${JEFF_SYSTEM_PROMPT}\n\n`;
-    
-    // Include recent conversation history (last 10 messages for better context)
-    if (conversationHistory.length > 0) {
+
+    // Include validated conversation history
+    if (validatedHistory.length > 0) {
       prompt += `CONVERSATION HISTORY (Read this carefully before responding):\n`;
-      conversationHistory.slice(-10).forEach(msg => {
+      validatedHistory.forEach(msg => {
         const role = msg.role === 'user' ? 'User' : 'Jeff';
         prompt += `${role}: ${msg.content}\n`;
       });
       prompt += `\n`;
     }
-    
-    prompt += `CURRENT USER MESSAGE: ${message}\n\nJeff (respond in JSON format, referencing conversation context if relevant):`;
+
+    prompt += `CURRENT USER MESSAGE: ${sanitizedMessage}\n\nJeff (respond in JSON format, referencing conversation context if relevant):`;
 
     // Generate response with retry logic
     let retries = 3;
@@ -313,24 +381,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Jeff backend is running!' });
 });
 
-// Cleanup old rate limit data every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, timestamps] of requestTracker.entries()) {
-    const recentRequests = timestamps.filter(t => now - t < RATE_LIMIT.windowMs);
-    if (recentRequests.length === 0) {
-      requestTracker.delete(ip);
-    } else {
-      requestTracker.set(ip, recentRequests);
-    }
+// HTTPS enforcement middleware for production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
+    res.redirect(`https://${req.header('host')}${req.url}`);
+  } else {
+    next();
   }
-}, 5 * 60 * 1000);
+});
 
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Jeff backend running on port ${PORT}`);
   console.log(`📝 Test the API: http://localhost:${PORT}/api/health`);
-  console.log(`⏱️  Rate limit: ${RATE_LIMIT.maxRequests} requests per minute`);
+  console.log(`⏱️  Rate limit: 20 requests per minute`);
+  console.log(`🔒 Security: CORS, Helmet, Input Sanitization, Rate Limiting enabled`);
 });
 
 
