@@ -188,25 +188,18 @@ const fetchWebPageDeclaration = {
 // NaviGrad Database
 const navigradData = {
   universities: {
-    brock: { name: 'Brock University', url: 'https://www.navigrad.ca/brock', location: 'St. Catharines' },
-    western: { name: 'Western University', url: 'https://www.navigrad.ca/western', location: 'London' },
-    waterloo: { name: 'University of Waterloo', url: 'https://www.navigrad.ca/waterloo', location: 'Waterloo' },
-    toronto: { name: 'University of Toronto', url: 'https://www.navigrad.ca/toronto', location: 'Toronto' },
-    mcmaster: { name: 'McMaster University', url: 'https://www.navigrad.ca/mcmaster', location: 'Hamilton' },
-    queens: { name: 'Queen\'s University', url: 'https://www.navigrad.ca/queens', location: 'Kingston' },
-    ottawa: { name: 'University of Ottawa', url: 'https://www.navigrad.ca/ottawa', location: 'Ottawa' },
-    guelph: { name: 'University of Guelph', url: 'https://www.navigrad.ca/guelph', location: 'Guelph' },
-    ryerson: { name: 'Toronto Metropolitan University', url: 'https://www.navigrad.ca/ryerson', location: 'Toronto' },
-    york: { name: 'York University', url: 'https://www.navigrad.ca/york', location: 'Toronto' },
-    carleton: { name: 'Carleton University', url: 'https://www.navigrad.ca/carleton', location: 'Ottawa' },
-    laurier: { name: 'Wilfrid Laurier University', url: 'https://www.navigrad.ca/laurier', location: 'Waterloo' },
-    windsor: { name: 'University of Windsor', url: 'https://www.navigrad.ca/windsor', location: 'Windsor' },
-    lakehead: { name: 'Lakehead University', url: 'https://www.navigrad.ca/lakehead', location: 'Thunder Bay' },
-    trent: { name: 'Trent University', url: 'https://www.navigrad.ca/trent', location: 'Peterborough' },
-    nipissing: { name: 'Nipissing University', url: 'https://www.navigrad.ca/nipissing', location: 'North Bay' },
-    algoma: { name: 'Algoma University', url: 'https://www.navigrad.ca/algoma', location: 'Sault Ste. Marie' },
-    laurentian: { name: 'Laurentian University', url: 'https://www.navigrad.ca/laurentian', location: 'Sudbury' },
-    ocad: { name: 'OCAD University', url: 'https://www.navigrad.ca/ocad', location: 'Toronto' }
+    brock: { name: 'Brock University', url: 'https://sites.google.com/view/navigrad/major-universities/brock-university?authuser=0', location: 'St. Catharines' },
+    western: { name: 'Western University', url: 'https://sites.google.com/view/navigrad/major-universities/western-university?authuser=0', location: 'London' },
+    waterloo: { name: 'University of Waterloo', url: 'https://sites.google.com/view/navigrad/major-universities/university-of-waterloo?authuser=0', location: 'Waterloo' },
+    toronto: { name: 'University of Toronto', url: 'https://sites.google.com/view/navigrad/major-universities/university-of-toronto/uoft-st-george?authuser=0', location: 'Toronto' },
+    mcmaster: { name: 'McMaster University', url: 'https://sites.google.com/view/navigrad/major-universities/mcmaster-university?authuser=0', location: 'Hamilton' },
+    queens: { name: 'Queen\'s University', url: 'https://sites.google.com/view/navigrad/major-universities/queens-university?authuser=0', location: 'Kingston' },
+    ottawa: { name: 'University of Ottawa', url: 'https://sites.google.com/view/navigrad/major-universities/university-of-ottawa?authuser=0', location: 'Ottawa' },
+    guelph: { name: 'University of Guelph', url: 'https://sites.google.com/view/navigrad/major-universities/univeristy-of-guelph?authuser=0', location: 'Guelph' },
+    ryerson: { name: 'Toronto Metropolitan University', url: 'https://sites.google.com/view/navigrad/major-universities/toronto-metropolitan-university?authuser=0', location: 'Toronto' },
+    york: { name: 'York University', url: 'https://sites.google.com/view/navigrad/major-universities/york-university?authuser=0', location: 'Toronto' },
+    carleton: { name: 'Carleton University', url: 'https://sites.google.com/view/navigrad/major-universities/carleton-university?authuser=0', location: 'Ottawa' },
+    laurier: { name: 'Wilfrid Laurier University', url: 'https://sites.google.com/view/navigrad/major-universities/laurier-university?authuser=0', location: 'Waterloo' },
   },
   features: {
     quiz: { name: 'Program Selector Quiz', url: 'https://www.navigrad.ca/quiz', description: 'Interactive quiz to find your ideal program, discover matching majors, identify suitable fields of study, get personalized program recommendations, explore academic paths based on interests, aptitudes, career goals, and preferences. Take the quiz to find programs that fit your strengths and passions.' },
@@ -604,5 +597,6 @@ app.listen(PORT, () => {
 
 
 module.exports = app;
+
 
 
