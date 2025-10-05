@@ -59,6 +59,80 @@
             margin-top: 8px;
         }
 
+        /* Progress Bar for Multi-Agent Pipeline */
+        .progress-container {
+            display: none;
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .progress-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #e9ecef;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-stages {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+
+        .stage {
+            color: #adb5bd;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stage.active {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .stage.completed {
+            color: #28a745;
+        }
+
         .chat-messages {
             flex: 1;
             padding: 20px;
@@ -353,7 +427,23 @@
         <div class="chat-header">
             <h1>🤖 Hey, I'm Jeff!</h1>
             <p>Your AI-Powered NaviGrad Assistant</p>
-            <div class="ai-badge">✨ Powered by Google Gemini 2.0</div>
+            <div class="ai-badge">✨ Powered by Gemini 2.0 + GPT-4o-mini</div>
+        </div>
+
+        <!-- Progress Bar for Multi-Agent Pipeline -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-text">
+                <div class="progress-spinner"></div>
+                <span id="progressText">Jeff is thinking...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-stages">
+                <div class="stage" id="stage1">🔍 Research</div>
+                <div class="stage" id="stage2">🧠 Analysis</div>
+                <div class="stage" id="stage3">🎓 Response</div>
+            </div>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -462,30 +552,61 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        // Progress bar functions for multi-agent pipeline
+        function showProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const stage1 = document.getElementById('stage1');
+            const stage2 = document.getElementById('stage2');
+            const stage3 = document.getElementById('stage3');
+            const progressText = document.getElementById('progressText');
+
+            // Show progress container
+            progressContainer.classList.add('active');
+
+            // Reset states
+            progressFill.style.width = '0%';
+            stage1.classList.remove('active', 'completed');
+            stage2.classList.remove('active', 'completed');
+            stage3.classList.remove('active', 'completed');
+
+            // Stage 1: Research (0-33%)
+            setTimeout(() => {
+                stage1.classList.add('active');
+                progressText.textContent = '🔍 Gemini is researching...';
+                progressFill.style.width = '33%';
+            }, 100);
+
+            // Stage 2: Analysis (33-66%)
+            setTimeout(() => {
+                stage1.classList.remove('active');
+                stage1.classList.add('completed');
+                stage2.classList.add('active');
+                progressText.textContent = '🧠 GPT is analyzing...';
+                progressFill.style.width = '66%';
+            }, 1500);
+
+            // Stage 3: Response (66-100%)
+            setTimeout(() => {
+                stage2.classList.remove('active');
+                stage2.classList.add('completed');
+                stage3.classList.add('active');
+                progressText.textContent = '🎓 Crafting your response...';
+                progressFill.style.width = '100%';
+            }, 3000);
+        }
+
+        function hideProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.classList.remove('active');
+        }
+
         function showTypingIndicator() {
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'message jeff';
-            typingDiv.id = 'typing-indicator';
-
-            const avatar = document.createElement('div');
-            avatar.className = 'robot-avatar thinking';
-            avatar.textContent = '🤖';
-            typingDiv.appendChild(avatar);
-
-            const indicatorDiv = document.createElement('div');
-            indicatorDiv.className = 'typing-indicator active';
-            indicatorDiv.innerHTML = '<span class="typing-text">Jeff is thinking</span><span></span><span></span><span></span>';
-
-            typingDiv.appendChild(indicatorDiv);
-            chatMessages.appendChild(typingDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            showProgress();
         }
 
         function hideTypingIndicator() {
-            const indicator = document.getElementById('typing-indicator');
-            if (indicator) {
-                indicator.remove();
-            }
+            hideProgress();
         }
 
         function showError(message, isRateLimit = false) {

@@ -10,6 +10,7 @@ const cheerio = require('cheerio');
 const crypto = require('crypto');
 const NodeCache = require('node-cache');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,8 +49,13 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Initialize Gemini AI
+// Initialize Gemini AI (for research agent)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Initialize OpenAI (for analysis and personality agent)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'your_openai_api_key_here'
+});
 
 // Initialize response cache
 // TTL: 24 hours (86400 seconds), check period: 1 hour (3600 seconds)
@@ -489,35 +495,45 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     cacheStats.misses++;
     console.log(`🔍 Cache MISS - Making API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses`);
 
+    // ========================================
+    // JEFF 5.0: MULTI-AGENT PIPELINE
+    // ========================================
+    // Step 1: Gemini researches
+    // Step 2: GPT-4o-mini analyzes and adds personality
+    // Step 3: Final NaviGrad integration
+    // ========================================
+
+    console.log('🤖 [Agent 1/3] Gemini Research Agent starting...');
+
     // Initialize the model with function calling enabled
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
       tools: [{ functionDeclarations: [fetchWebPageDeclaration] }]
     });
 
-    // Build conversation context - use validated history
-    let prompt = `${JEFF_SYSTEM_PROMPT}\n\n`;
+    // Build conversation context for Gemini (Research Agent)
+    let geminiPrompt = `You are a research agent. Your job is to gather raw information to answer the user's question.
 
-    // Include validated conversation history
-    if (validatedHistory.length > 0) {
-      prompt += `CONVERSATION HISTORY (Read this carefully before responding):\n`;
-      validatedHistory.forEach(msg => {
-        const role = msg.role === 'user' ? 'User' : 'Jeff';
-        prompt += `${role}: ${msg.content}\n`;
-      });
-      prompt += `\n`;
-    }
+TASK: Gather factual information about: "${sanitizedMessage}"
 
-    prompt += `CURRENT USER MESSAGE: ${sanitizedMessage}\n\nJeff (respond in JSON format, referencing conversation context if relevant):`;
+CONVERSATION HISTORY:
+${validatedHistory.slice(-3).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 
-    // Generate response with function calling support
-    let jsonResponse;
+INSTRUCTIONS:
+- Use the fetchWebPage function to get current information if needed
+- Gather facts, details, and relevant data
+- Don't add personality or formatting yet - that comes later
+- Be thorough and accurate
+- Return raw research findings in JSON format: { "research": "your findings here", "sources": ["url1", "url2"] }`;
+
+    // Generate Gemini research response with function calling support
+    let geminiResearch;
     let functionCallAttempts = 0;
     const maxFunctionCalls = 3; // Prevent infinite loops
 
     while (functionCallAttempts < maxFunctionCalls) {
       try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(geminiPrompt);
         const response = result.response;
 
         // Check if there are function calls
@@ -541,7 +557,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           );
 
           // Continue conversation with function results
-          prompt += `\n\nFUNCTION RESULTS:\n${JSON.stringify(functionResponses, null, 2)}\n\nNow provide your final response in JSON format based on this information:`;
+          geminiPrompt += `\n\nFUNCTION RESULTS:\n${JSON.stringify(functionResponses, null, 2)}\n\nNow provide your final research in JSON format:`;
           continue; // Loop again with function results
         }
 
@@ -552,13 +568,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         try {
           // Remove markdown code blocks if present
           text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          jsonResponse = JSON.parse(text);
+          geminiResearch = JSON.parse(text);
           break; // Success, exit loop
         } catch (e) {
-          // If JSON parsing fails, create a simple response
-          jsonResponse = {
-            message: text,
-            link: null
+          // If JSON parsing fails, use text as research
+          geminiResearch = {
+            research: text,
+            sources: []
           };
           break;
         }
@@ -567,12 +583,77 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       }
     }
 
-    if (!jsonResponse) {
+    if (!geminiResearch) {
+      geminiResearch = {
+        research: "Unable to gather research data.",
+        sources: []
+      };
+    }
+
+    console.log('✅ [Agent 1/3] Gemini Research completed');
+    console.log('🧠 [Agent 2/3] GPT-4o-mini Analysis Agent starting...');
+
+    // ========================================
+    // STEP 2: GPT-4o-mini analyzes and adds personality
+    // ========================================
+
+    const gptResponse = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `${JEFF_SYSTEM_PROMPT}\n\nYour task: Take research data and transform it into a helpful, friendly response for a student.`
+        },
+        {
+          role: 'user',
+          content: `User asked: "${sanitizedMessage}"
+
+RESEARCH DATA:
+${JSON.stringify(geminiResearch, null, 2)}
+
+CONVERSATION HISTORY:
+${validatedHistory.slice(-3).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+Transform this research into a friendly, well-formatted response:
+- Use **bold** for important terms
+- Format as bullet points where appropriate
+- Add personality and encouragement
+- Keep it concise and student-friendly
+- Reference the conversation history if relevant
+
+Respond in JSON format: { "message": "your response", "link": { "url": "optional_url", "name": "link name", "text": "button text" } }`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    });
+
+    console.log('✅ [Agent 2/3] GPT Analysis completed');
+    console.log('🎓 [Agent 3/3] NaviGrad Integration starting...');
+
+    // Parse GPT response
+    let gptContent = gptResponse.choices[0].message.content;
+    let jsonResponse;
+
+    try {
+      // Remove markdown code blocks if present
+      gptContent = gptContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      jsonResponse = JSON.parse(gptContent);
+    } catch (e) {
+      // If JSON parsing fails, create a simple response
       jsonResponse = {
-        message: "I'm having trouble processing your request. Please try again!",
+        message: gptContent,
         link: null
       };
     }
+
+    // Ensure response has required structure
+    if (!jsonResponse.message) {
+      jsonResponse.message = "I've gathered some information for you, but I'm having trouble formatting it. Please try rephrasing your question!";
+    }
+
+    console.log('✅ [Agent 3/3] NaviGrad Integration completed');
+    console.log('🎉 Multi-agent pipeline finished successfully!');
 
     // Save successful response to cache
     responseCache.set(cacheKey, jsonResponse);
@@ -582,20 +663,39 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     res.json(jsonResponse);
 
   } catch (error) {
-    console.error('Error:', error);
-    
-    // Check if it's a rate limit error from Google
+    console.error('Multi-agent pipeline error:', error);
+
+    // Check for specific error types
     if (error.message && error.message.includes('429')) {
-      return res.status(429).json({ 
+      return res.status(429).json({
         error: 'API rate limit',
-        message: 'I\'m getting too many requests right now! 😅 Wait about 30 seconds and try again. Google\'s API has limits to keep things fair for everyone!',
+        message: 'I\'m getting too many requests right now! 😅 Wait about 30 seconds and try again. The API has limits to keep things fair for everyone!',
         link: null
       });
     }
-    
-    res.status(500).json({ 
+
+    // OpenAI API errors
+    if (error.code === 'insufficient_quota') {
+      return res.status(503).json({
+        error: 'Service unavailable',
+        message: 'Jeff is temporarily unavailable due to API quota limits. Please try again later or contact the NaviGrad team!',
+        link: null
+      });
+    }
+
+    if (error.status === 401) {
+      console.error('❌ OpenAI API Key invalid or missing!');
+      return res.status(500).json({
+        error: 'Configuration error',
+        message: 'Jeff is having configuration issues. The NaviGrad team has been notified!',
+        link: null
+      });
+    }
+
+    // Generic error fallback
+    res.status(500).json({
       error: 'Failed to generate response',
-      message: 'Sorry, I encountered an error. Please try again! If this keeps happening, the AI service might be temporarily busy.',
+      message: 'Sorry, I encountered an error while processing your question! 😅 Please try again. If this keeps happening, try asking a simpler question or refresh the page.',
       link: null
     });
   }
