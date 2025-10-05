@@ -30,8 +30,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body parsing with size limits
-app.use(express.json({ limit: '10kb' })); // Limit request body to 10kb
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '100kb' })); // Limit request body to 100kb (for conversation history)
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Sanitize data against NoSQL injection
 app.use(mongoSanitize());
