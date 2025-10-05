@@ -7,6 +7,8 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const crypto = require('crypto');
+const NodeCache = require('node-cache');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -55,6 +57,21 @@ app.use(mongoSanitize());
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Initialize response cache
+// TTL: 24 hours (86400 seconds), check period: 1 hour (3600 seconds)
+const responseCache = new NodeCache({
+  stdTTL: 86400,  // Cache responses for 24 hours
+  checkperiod: 3600,  // Check for expired keys every hour
+  useClones: false  // Don't clone objects for better performance
+});
+
+// Cache statistics
+let cacheStats = {
+  hits: 0,
+  misses: 0,
+  saves: 0
+};
+
 // Rate limiting using express-rate-limit (more secure, prevents IP spoofing)
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -101,6 +118,20 @@ function validateConversationHistory(history) {
       role: msg.role,
       content: sanitizeInput(msg.content)
     }));
+}
+
+// Generate cache key from message and conversation history
+function generateCacheKey(message, conversationHistory) {
+  // Create a string combining the message and recent conversation context
+  const contextString = conversationHistory
+    .slice(-3) // Only use last 3 messages for context
+    .map(msg => `${msg.role}:${msg.content}`)
+    .join('|');
+
+  const fullContext = `${contextString}|user:${message}`;
+
+  // Generate SHA256 hash as cache key
+  return crypto.createHash('sha256').update(fullContext).digest('hex');
 }
 
 // Web fetching function that Gemini can call
@@ -178,11 +209,11 @@ const navigradData = {
     ocad: { name: 'OCAD University', url: 'https://www.navigrad.ca/ocad', location: 'Toronto' }
   },
   features: {
-    quiz: { name: 'Program Selector Quiz', url: 'https://www.navigrad.ca/quiz' },
-    colleges: { name: 'College Information', url: 'https://www.navigrad.ca/colleges' },
-    apprenticeship: { name: 'Apprenticeship Programs', url: 'https://www.navigrad.ca/apprenticeship' },
-    shop: { name: 'University Essentials Shop', url: 'https://www.navigrad.ca/shop' },
-    home: { name: 'Home Page', url: 'https://www.navigrad.ca/' }
+    quiz: { name: 'Program Selector Quiz', url: 'https://www.navigrad.ca/quiz', description: 'Interactive quiz to find your ideal program, discover matching majors, identify suitable fields of study, get personalized program recommendations, explore academic paths based on interests, aptitudes, career goals, and preferences. Take the quiz to find programs that fit your strengths and passions.' },
+    colleges: { name: 'College Information', url: 'https://www.navigrad.ca/colleges', description: 'Comprehensive guide to Ontario colleges, college system overview, list of colleges, program offerings, applied learning, hands-on training, diploma programs, certificate courses, college vs university, technical education, vocational training, skilled trades, and everything you need to know about Ontario college education.' },
+    apprenticeship: { name: 'Apprenticeship Programs', url: 'https://www.navigrad.ca/apprenticeship', description: 'Complete guide to apprenticeships in Ontario, skilled trades training, earn while you learn, hands-on learning, trade certifications, journeyperson certification, trade schools, on-the-job training, apprenticeship opportunities, construction trades, electrical, plumbing, automotive, and alternative pathways to traditional university.' },
+    shop: { name: 'University Essentials Shop', url: 'https://www.navigrad.ca/shop', description: 'NaviGrad marketplace for university essentials, student supplies, dorm room items, academic materials, study tools, textbooks, school gear, student discounts, recommended products, curated university items, everything you need for university life, and convenient shopping for students.' },
+    home: { name: 'Home Page', url: 'https://www.navigrad.ca/', description: 'NaviGrad main page, platform overview, start exploring, discover resources, access all tools, browse universities, find programs, career exploration, student resources hub, central navigation, and your gateway to all NaviGrad features and Ontario post-secondary information.' }
   },
   careers: {
     'Software Engineer': { programs: ['Computer Science', 'Software Engineering'], universities: ['waterloo', 'toronto', 'mcmaster'], salary: '$80k-120k' },
@@ -196,44 +227,71 @@ const navigradData = {
     'Data Scientist': { programs: ['Data Science', 'Statistics', 'Computer Science'], universities: ['waterloo', 'toronto', 'mcmaster'], salary: '$85k-130k' }
   },
   tools: {
-    careerFinder: { name: 'Career Finder', url: 'https://www.navigrad.ca/career-finder', description: 'Discover careers that match your interests and skills' },
-    startPage: { name: 'Start Page', url: 'https://www.navigrad.ca/start', description: 'Begin your post-secondary journey' },
-    myBlueprint: { name: 'MyBlueprint', url: 'https://www.navigrad.ca/myblueprint', description: 'Career and education planning tool' },
-    careerPathExplorer: { name: 'Career Path Explorer', url: 'https://www.navigrad.ca/career-path-explorer', description: 'Explore different career pathways' },
-    aiChatbots: { name: 'Best AI Chatbots', url: 'https://www.navigrad.ca/best-ai-chatbots', description: 'AI tools to help with studying and research' },
-    futureSkillsArena: { name: 'Future Skills Arena', url: 'https://www.navigrad.ca/future-skills-arena', description: 'Learn about in-demand skills for the future' }
+    careerFinder: { name: 'Career Finder', url: 'https://www.navigrad.ca/career-finder', description: 'Interactive tool to discover and explore careers that match your interests, skills, passions, strengths, personality, and academic preferences. Find job options, career paths, profession ideas, and occupation suggestions based on what you enjoy doing.' },
+    startPage: { name: 'Start Page', url: 'https://www.navigrad.ca/start', description: 'Complete guide to begin your post-secondary journey in Ontario. Learn about the application process, OUAC, choosing programs, visiting campuses, finding your path, getting started with university or college planning, and first steps for grade 11-12 students.' },
+    myBlueprint: { name: 'MyBlueprint', url: 'https://www.navigrad.ca/myblueprint', description: 'Comprehensive career and education planning platform tool. Create portfolios, explore pathways, plan courses, set goals, track progress, research programs, build resumes, discover interests, and develop your academic and career roadmap for high school and beyond.' },
+    careerPathExplorer: { name: 'Career Path Explorer', url: 'https://www.navigrad.ca/career-path-explorer', description: 'Deep dive into different career pathways, trajectories, progressions, and journey options. Understand various professional routes, job advancement, industry transitions, specialization paths, and how to navigate your way from education to employment in different fields.' },
+    aiChatbots: { name: 'Best AI Chatbots', url: 'https://www.navigrad.ca/best-ai-chatbots', description: 'Curated list of the best AI tools, chatbots, assistants, and artificial intelligence resources to help with studying, homework, research, writing, learning, tutoring, essay help, assignment assistance, and academic success. Includes ChatGPT, educational AI, and study tools.' },
+    futureSkillsArena: { name: 'Future Skills Arena', url: 'https://www.navigrad.ca/future-skills-arena', description: 'Learn about in-demand skills for the future job market, emerging careers, growing industries, technology trends, workplace competencies, 21st century abilities, soft skills, technical skills, digital literacy, and what employers will look for in tomorrow\'s workforce.' }
   },
   studentResources: {
-    scholarships: { name: 'Scholarships', url: 'https://www.navigrad.ca/scholarships', description: 'Find scholarships and financial aid opportunities' },
-    studentLoans: { name: 'Student Loans', url: 'https://www.navigrad.ca/student-loans', description: 'Learn about OSAP and student loan options' },
-    spc: { name: 'SPC Card', url: 'https://www.navigrad.ca/spc', description: 'Student Price Card discounts and benefits' },
-    extracurriculars: { name: 'Extracurriculars', url: 'https://www.navigrad.ca/extracurriculars', description: 'Clubs, sports, and activities to enhance your application' }
+    scholarships: { name: 'Scholarships', url: 'https://www.navigrad.ca/scholarships', description: 'Comprehensive database of scholarships, bursaries, grants, awards, financial aid, funding opportunities, money for school, free money for students, merit-based awards, need-based assistance, entrance scholarships, and ways to pay for university or college without student loans.' },
+    studentLoans: { name: 'Student Loans', url: 'https://www.navigrad.ca/student-loans', description: 'Complete guide to OSAP (Ontario Student Assistance Program), student loans, government funding, financial aid applications, loan repayment, interest rates, borrowing money for school, student debt management, provincial aid, federal loans, and financing your education in Ontario.' },
+    spc: { name: 'SPC Card', url: 'https://www.navigrad.ca/spc', description: 'Student Price Card (SPC) benefits, discounts, deals, savings, student perks, promotional offers, merchant partners, how to save money as a student, student discount programs, retail savings, food discounts, and ways to stretch your student budget.' },
+    extracurriculars: { name: 'Extracurriculars', url: 'https://www.navigrad.ca/extracurriculars', description: 'Clubs, sports, teams, activities, volunteering, community service, leadership opportunities, student organizations, hobbies, competitions, events, and extracurricular involvement to enhance your university application, build your resume, develop skills, and stand out to admissions.' }
   },
   preparationGuides: {
-    gettingReady: { name: 'Getting Ready for University', url: 'https://www.navigrad.ca/getting-ready-for-university', description: 'Essential preparation tips' },
-    universityEssentials: { name: 'University Essentials', url: 'https://www.navigrad.ca/university-essentials', description: 'Must-have items for university life' },
-    universityExtras: { name: 'University Extras', url: 'https://www.navigrad.ca/university-extras', description: 'Nice-to-have items to enhance your experience' },
-    skillsToKnow: { name: 'Skills To Know', url: 'https://www.navigrad.ca/skills-to-know', description: 'Essential skills for success' },
-    interviewSkills: { name: 'Interview Skills', url: 'https://www.navigrad.ca/interview-skills', description: 'Ace your university and job interviews' },
-    importantSkills: { name: 'Important Skills', url: 'https://www.navigrad.ca/important-skills', description: 'Key competencies for academic and career success' }
+    gettingReady: { name: 'Getting Ready for University', url: 'https://www.navigrad.ca/getting-ready-for-university', description: 'Essential preparation tips, checklists, advice, and guides for transitioning from high school to university. Learn what to expect, how to prepare mentally and academically, first-year readiness, moving away from home, residence prep, course selection, orientation planning, and everything you need before starting university.' },
+    universityEssentials: { name: 'University Essentials', url: 'https://www.navigrad.ca/university-essentials', description: 'Must-have items, required supplies, necessary gear, essential equipment, mandatory purchases, basic needs, school supplies, dorm room necessities, technology requirements, textbooks, laptops, stationery, and everything you absolutely need for successful university life and academics.' },
+    universityExtras: { name: 'University Extras', url: 'https://www.navigrad.ca/university-extras', description: 'Nice-to-have items, optional purchases, recommended extras, comfort items, quality of life improvements, dorm decorations, study enhancements, leisure items, convenience products, and things that enhance your university experience beyond the basics.' },
+    skillsToKnow: { name: 'Skills To Know', url: 'https://www.navigrad.ca/skills-to-know', description: 'Essential life skills, study techniques, time management, organization, critical thinking, communication abilities, research skills, note-taking strategies, exam preparation, productivity methods, and fundamental competencies every university student should develop for academic and personal success.' },
+    interviewSkills: { name: 'Interview Skills', url: 'https://www.navigrad.ca/interview-skills', description: 'Master interview techniques, preparation strategies, answering questions, behavioral interviews, STAR method, confident communication, body language, dress code, follow-up etiquette, common questions, how to prepare, tips to ace university admission interviews, scholarship interviews, and job interviews.' },
+    importantSkills: { name: 'Important Skills', url: 'https://www.navigrad.ca/important-skills', description: 'Key competencies, vital abilities, crucial skills, professional development, workplace readiness, transferable skills, soft skills, hard skills, employability factors, career success skills, leadership, teamwork, problem-solving, and competencies for academic achievement and future career advancement.' }
   },
   earningMoney: {
-    sideHustles: { name: 'Side Hustles', url: 'https://www.navigrad.ca/side-hustles', description: 'Ways to earn money while studying' },
-    employment: { name: 'Employment', url: 'https://www.navigrad.ca/employment', description: 'Part-time and full-time job opportunities' },
-    coopInternships: { name: 'Co-op & Internships', url: 'https://www.navigrad.ca/coop-internships', description: 'Gain work experience through co-op and internship programs' }
+    sideHustles: { name: 'Side Hustles', url: 'https://www.navigrad.ca/side-hustles', description: 'Ways to earn extra money, make cash while studying, freelancing opportunities, gig economy jobs, passive income ideas, online money-making, entrepreneurship for students, part-time business ideas, flexible income sources, and creative ways to fund your education while maintaining academic success.' },
+    employment: { name: 'Employment', url: 'https://www.navigrad.ca/employment', description: 'Part-time jobs, full-time work, student employment opportunities, on-campus jobs, off-campus positions, work-study programs, summer jobs, career opportunities, job search strategies, resume building, where to find work, hiring resources, and employment options for students.' },
+    coopInternships: { name: 'Co-op & Internships', url: 'https://www.navigrad.ca/coop-internships', description: 'Gain valuable work experience, paid internships, co-op programs, work-integrated learning, industry placements, hands-on training, professional development, networking opportunities, career exploration, employer connections, and programs that combine academic study with real-world workplace experience.' }
   },
   programs: {
-    universityPrograms: { name: 'University Programs', url: 'https://www.navigrad.ca/university-programs', description: 'Browse programs by field of study' },
-    collegePrograms: { name: 'College Programs', url: 'https://www.navigrad.ca/college-programs', description: 'Explore college diploma and certificate programs' },
-    universityXCollege: { name: 'University X College Programs', url: 'https://www.navigrad.ca/university-x-college', description: 'Combined university-college pathways' }
+    universityPrograms: { name: 'University Programs', url: 'https://www.navigrad.ca/university-programs', description: 'Browse and explore university programs, majors, degrees, fields of study, academic disciplines, bachelor programs, undergraduate options, subject areas, faculties, departments, specialized streams, honors programs, combined degrees, program requirements, and detailed information about what you can study at Ontario universities.' },
+    collegePrograms: { name: 'College Programs', url: 'https://www.navigrad.ca/college-programs', description: 'Explore Ontario college diploma programs, certificate courses, advanced diplomas, vocational training, technical education, skilled trades, applied learning, hands-on programs, career-focused education, two-year programs, three-year programs, college majors, and practical training options at Ontario colleges.' },
+    universityXCollege: { name: 'University X College Programs', url: 'https://www.navigrad.ca/university-x-college', description: 'Combined university-college pathways, transfer programs, articulation agreements, 2+2 programs, college-to-university transfers, dual credentials, collaborative programs, pathway opportunities, bridging programs, and options to combine college diplomas with university degrees for comprehensive education.' }
   },
   applicationTools: {
-    applicationSoftwares: { name: 'Application Softwares', url: 'https://www.navigrad.ca/application-softwares', description: 'OUAC, college applications, and other platforms' },
-    startingLinkedIn: { name: 'Starting LinkedIn', url: 'https://www.navigrad.ca/starting-linkedin', description: 'Build your professional network' }
+    applicationSoftwares: { name: 'Application Softwares', url: 'https://www.navigrad.ca/application-softwares', description: 'OUAC (Ontario Universities Application Centre), college application systems, OCAS, application platforms, how to apply, submission portals, application deadlines, required documents, supplementary applications, program-specific requirements, application fees, and complete guide to applying to universities and colleges in Ontario.' },
+    startingLinkedIn: { name: 'Starting LinkedIn', url: 'https://www.navigrad.ca/starting-linkedin', description: 'Build your professional network, create LinkedIn profile, networking strategies, online presence, professional branding, connect with employers, industry connections, job search platform, career networking, social media for professionals, profile optimization, and establishing your digital professional identity.' }
   },
   informationalPages: {
-    about: { name: 'About NaviGrad', url: 'https://www.navigrad.ca/about', description: 'Learn about NaviGrad and our mission' },
-    universityDefense: { name: 'New University Defense', url: 'https://www.navigrad.ca/new-university-defense', description: 'Tips for adapting to university life' }
+    about: { name: 'About NaviGrad', url: 'https://www.navigrad.ca/about', description: 'Learn about NaviGrad, our mission, vision, team, story, purpose, founders, what we do, why we exist, company information, platform goals, student success mission, educational resources, helping Ontario students, and background about the NaviGrad platform and team.' },
+    universityDefense: { name: 'New University Defense', url: 'https://www.navigrad.ca/new-university-defense', description: 'Tips for adapting to university life, transition strategies, adjustment advice, surviving first year, handling challenges, dealing with stress, academic pressures, social adjustment, independence skills, time management, balancing responsibilities, mental health, homesickness, and successfully navigating the university experience.' }
+  },
+  team: {
+    jashan: {
+      name: 'Jashan',
+      role: 'Founder of NaviGrad',
+      background: 'Started working on NaviGrad in Grade 12. Worked on it solo for 6 months before anyone joined the team. Created the vision and foundation for NaviGrad.',
+      university: 'University of Waterloo'
+    },
+    jason: {
+      name: 'Jason',
+      role: 'Director of Marketing and Finance',
+      background: 'Jashan\'s best friend from high school. Joined NaviGrad after Jashan pitched the idea to him in early first year of university.',
+      relationship: 'Best friends with Jashan since high school'
+    },
+    jaidin: {
+      name: 'Jaidin',
+      role: 'Director of Media and Design',
+      background: 'Good friend of Jashan from high school. Joined to fulfill his art skills and help design the NaviGrad site and logo.',
+      responsibilities: 'Site design, logo creation, visual identity'
+    },
+    shakeel: {
+      name: 'Shakeel',
+      role: 'Director of Operations',
+      background: 'Met Jashan at University of Waterloo. They bonded quickly and started making NaviGrad right away. Besides Jashan, Shakeel was a big part of the development of the NaviGrad site.',
+      university: 'University of Waterloo',
+      contributions: 'Major contributor to NaviGrad site development alongside Jashan'
+    }
   }
 };
 
@@ -276,6 +334,7 @@ RESOURCE CATEGORIES YOU HAVE ACCESS TO:
 - **Programs**: University Programs, College Programs, University X College Programs
 - **Application Tools**: Application Softwares, Starting LinkedIn
 - **Careers**: 9 different career paths with program and university recommendations
+- **Team**: The NaviGrad team - Jashan (Founder), Jason (Director of Marketing & Finance), Jaidin (Director of Media & Design), Shakeel (Director of Operations)
 
 FUNCTION CALLING - CRITICAL:
 - You have access to the fetchWebPage function to get current, accurate information
@@ -286,12 +345,27 @@ FUNCTION CALLING - CRITICAL:
 - **HOW TO USE**: Simply call the function with a relevant URL. The results will be provided to you, then answer the question accurately
 - **IMPORTANT**: ALWAYS use the function when you're not 100% certain about specific details. It's better to fetch current data than to guess or provide outdated information
 
+NAVIGRAD TEAM KNOWLEDGE - IMPORTANT:
+When asked about NaviGrad or the team behind it, use this information:
+- **Jashan** is the Founder who started NaviGrad in Grade 12, worked solo for 6 months before building the team. He attends University of Waterloo.
+- **Jason** is the Director of Marketing and Finance. He's Jashan's best friend from high school who joined after Jashan pitched the idea in early first year university.
+- **Jaidin** is the Director of Media and Design. He's Jashan's good friend from high school who joined to use his art skills to design the site and logo.
+- **Shakeel** is the Director of Operations. He met Jashan at Waterloo, bonded quickly, and became a major contributor to the site's development alongside Jashan.
+
+The team is young, passionate, and built NaviGrad to help Ontario students navigate post-secondary education. If asked about the team, share these details enthusiastically!
+
+ABOUT YOUR NAME (JEFF):
+- Your greeting is "**My Name Jeff**" - it's a fun meme reference!
+- If asked about your name or why you're called Jeff, say: "The developers like a good laugh here and there! 😄"
+- Keep it light and fun - the name is meant to make students smile!
+
 LINK RULES:
 - Provide a NaviGrad link when it's relevant and helpful
 - Don't force a link into every response
 - If answering a general question (like "who founded Waterloo?"), just answer it naturally
 - If the student wants to learn more about a specific university, program, career, OR needs help with scholarships, applications, career exploration, preparation, etc., THEN provide the appropriate link
 - Use the new resource categories (tools, studentResources, preparationGuides, earningMoney, programs, applicationTools) to provide comprehensive guidance
+- When asked about the NaviGrad team, provide the About NaviGrad link for more details
 
 Available NaviGrad Resources:
 ${JSON.stringify(navigradData, null, 2)}
@@ -361,6 +435,20 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
     // Validate and sanitize conversation history
     const validatedHistory = validateConversationHistory(conversationHistory);
+
+    // Generate cache key
+    const cacheKey = generateCacheKey(sanitizedMessage, validatedHistory);
+
+    // Check cache first
+    const cachedResponse = responseCache.get(cacheKey);
+    if (cachedResponse) {
+      cacheStats.hits++;
+      console.log(`💾 Cache HIT - Saved API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses, ${((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(1)}% hit rate`);
+      return res.json(cachedResponse);
+    }
+
+    cacheStats.misses++;
+    console.log(`🔍 Cache MISS - Making API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses`);
 
     // Initialize the model with function calling enabled
     const model = genAI.getGenerativeModel({
@@ -447,6 +535,11 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       };
     }
 
+    // Save successful response to cache
+    responseCache.set(cacheKey, jsonResponse);
+    cacheStats.saves++;
+    console.log(`💾 Cached response | Total cached: ${responseCache.keys().length} responses`);
+
     res.json(jsonResponse);
 
   } catch (error) {
@@ -474,6 +567,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Jeff backend is running!' });
 });
 
+// Cache statistics endpoint
+app.get('/api/cache-stats', (req, res) => {
+  const totalRequests = cacheStats.hits + cacheStats.misses;
+  const hitRate = totalRequests > 0 ? ((cacheStats.hits / totalRequests) * 100).toFixed(2) : 0;
+
+  res.json({
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    saves: cacheStats.saves,
+    totalRequests,
+    hitRate: `${hitRate}%`,
+    cachedResponses: responseCache.keys().length,
+    cacheSize: responseCache.getStats()
+  });
+});
+
 // HTTPS enforcement middleware for production
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
@@ -487,7 +596,9 @@ app.use((req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Jeff backend running on port ${PORT}`);
   console.log(`📝 Test the API: http://localhost:${PORT}/api/health`);
+  console.log(`📊 Cache stats: http://localhost:${PORT}/api/cache-stats`);
   console.log(`⏱️  Rate limit: 20 requests per minute`);
+  console.log(`💾 Response caching: Enabled (24 hour TTL)`);
   console.log(`🔒 Security: CORS, Helmet, Input Sanitization, Rate Limiting enabled`);
 });
 
