@@ -28,15 +28,19 @@ const corsOptions = {
       'https://navigrad.ca',
       'http://localhost:3000', // For local development
       'http://localhost:5500', // For local development
-      'http://127.0.0.1:5500'  // For local development
+      'http://127.0.0.1:5500',  // For local development
+      'http://localhost:5501',
+      'http://127.0.0.1:5501',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080'
     ];
 
-    // Allow requests with no origin (like mobile apps or curl requests) in development
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // Allow requests with no origin (like file:// protocol or mobile apps) in development
+    if (!origin) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
