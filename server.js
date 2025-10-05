@@ -36,6 +36,18 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 // Sanitize data against NoSQL injection
 app.use(mongoSanitize());
 
+// Error handler for payload too large
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Conversation too long',
+      message: 'Your conversation history has gotten too long! 😅 Please refresh the page and start a new conversation with me. Don\'t worry, I\'ll still remember how to help you!',
+      link: null
+    });
+  }
+  next(err);
+});
+
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
