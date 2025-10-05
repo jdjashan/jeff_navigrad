@@ -5,6 +5,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -63,12 +65,8 @@ const chatLimiter = rateLimit({
     link: null
   },
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Use a secure key generator that can't be spoofed
-  keyGenerator: (req) => {
-    // Use the real IP from trusted proxy
-    return req.ip || req.connection.remoteAddress;
-  }
+  legacyHeaders: false // Disable the `X-RateLimit-*` headers
+  // Use default key generator which properly handles IPv6
 });
 
 // Input sanitization function
@@ -104,6 +102,57 @@ function validateConversationHistory(history) {
       content: sanitizeInput(msg.content)
     }));
 }
+
+// Web fetching function that Gemini can call
+async function fetchWebPage(url) {
+  try {
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; JeffBot/1.0;)'
+      }
+    });
+
+    const $ = cheerio.load(response.data);
+
+    // Remove script and style elements
+    $('script, style, nav, header, footer').remove();
+
+    // Extract text content
+    const textContent = $('body').text()
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim()
+      .substring(0, 5000); // Limit to 5000 chars
+
+    return {
+      success: true,
+      content: textContent,
+      url: url
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      url: url
+    };
+  }
+}
+
+// Define the function declaration for Gemini
+const fetchWebPageDeclaration = {
+  name: "fetchWebPage",
+  description: "Fetches and extracts text content from a web page. Use this when you need specific, current information about universities, programs, residences, or other details that you don't have in your knowledge base. For example, if asked about specific residence hall types (traditional vs suite style), program details, admission requirements, or other university-specific facts.",
+  parameters: {
+    type: "object",
+    properties: {
+      url: {
+        type: "string",
+        description: "The full URL to fetch. Must be a complete URL starting with http:// or https://. Use NaviGrad URLs from the knowledge base or university official websites."
+      }
+    },
+    required: ["url"]
+  }
+};
 
 // NaviGrad Database
 const navigradData = {
@@ -228,6 +277,15 @@ RESOURCE CATEGORIES YOU HAVE ACCESS TO:
 - **Application Tools**: Application Softwares, Starting LinkedIn
 - **Careers**: 9 different career paths with program and university recommendations
 
+FUNCTION CALLING - CRITICAL:
+- You have access to the fetchWebPage function to get current, accurate information
+- **WHEN TO USE IT**: If you don't have specific information (like residence hall types, specific program details, admission requirements, tuition costs), call fetchWebPage with the relevant URL
+- **EXAMPLES**:
+  - User asks "What type of residence is Beck Hall at Waterloo?" → You don't know this specific detail → Call fetchWebPage("https://www.navigrad.ca/waterloo") or the official UWaterloo residence page
+  - User asks "What's the admission average for Western Engineering?" → Call fetchWebPage to get current data
+- **HOW TO USE**: Simply call the function with a relevant URL. The results will be provided to you, then answer the question accurately
+- **IMPORTANT**: ALWAYS use the function when you're not 100% certain about specific details. It's better to fetch current data than to guess or provide outdated information
+
 LINK RULES:
 - Provide a NaviGrad link when it's relevant and helpful
 - Don't force a link into every response
@@ -304,8 +362,11 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     // Validate and sanitize conversation history
     const validatedHistory = validateConversationHistory(conversationHistory);
 
-    // Initialize the model - UPDATED to gemini-2.0-flash-exp
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    // Initialize the model with function calling enabled
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      tools: [{ functionDeclarations: [fetchWebPageDeclaration] }]
+    });
 
     // Build conversation context - use validated history
     let prompt = `${JEFF_SYSTEM_PROMPT}\n\n`;
@@ -322,14 +383,42 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
     prompt += `CURRENT USER MESSAGE: ${sanitizedMessage}\n\nJeff (respond in JSON format, referencing conversation context if relevant):`;
 
-    // Generate response with retry logic
-    let retries = 3;
+    // Generate response with function calling support
     let jsonResponse;
-    
-    while (retries > 0) {
+    let functionCallAttempts = 0;
+    const maxFunctionCalls = 3; // Prevent infinite loops
+
+    while (functionCallAttempts < maxFunctionCalls) {
       try {
         const result = await model.generateContent(prompt);
-        const response = await result.response;
+        const response = result.response;
+
+        // Check if there are function calls
+        const functionCalls = response.functionCalls();
+
+        if (functionCalls && functionCalls.length > 0) {
+          functionCallAttempts++;
+
+          // Execute all function calls
+          const functionResponses = await Promise.all(
+            functionCalls.map(async (call) => {
+              if (call.name === 'fetchWebPage') {
+                const webResult = await fetchWebPage(call.args.url);
+                return {
+                  name: call.name,
+                  response: webResult
+                };
+              }
+              return null;
+            })
+          );
+
+          // Continue conversation with function results
+          prompt += `\n\nFUNCTION RESULTS:\n${JSON.stringify(functionResponses, null, 2)}\n\nNow provide your final response in JSON format based on this information:`;
+          continue; // Loop again with function results
+        }
+
+        // No function calls, process the text response
         let text = response.text();
 
         // Try to parse JSON response
@@ -337,7 +426,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           // Remove markdown code blocks if present
           text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
           jsonResponse = JSON.parse(text);
-          break; // Success, exit retry loop
+          break; // Success, exit loop
         } catch (e) {
           // If JSON parsing fails, create a simple response
           jsonResponse = {
@@ -347,11 +436,15 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           break;
         }
       } catch (error) {
-        retries--;
-        if (retries === 0) throw error;
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        throw error;
       }
+    }
+
+    if (!jsonResponse) {
+      jsonResponse = {
+        message: "I'm having trouble processing your request. Please try again!",
+        link: null
+      };
     }
 
     res.json(jsonResponse);
