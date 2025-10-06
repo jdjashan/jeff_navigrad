@@ -427,7 +427,7 @@
         <div class="chat-header">
             <h1>🤖 Hey, I'm Jeff!</h1>
             <p>Your AI-Powered NaviGrad Assistant</p>
-            <div class="ai-badge">✨ Powered by Gemini 2.0 + GPT-4o-mini</div>
+            <div class="ai-badge">✨ Powered by GPT-4o-mini</div>
         </div>
 
         <!-- Progress Bar for Multi-Agent Pipeline -->
@@ -438,11 +438,6 @@
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-stages">
-                <div class="stage" id="stage1">🔍 Research</div>
-                <div class="stage" id="stage2">🧠 Analysis</div>
-                <div class="stage" id="stage3">🎓 Response</div>
             </div>
         </div>
 
@@ -556,9 +551,6 @@
         function showProgress() {
             const progressContainer = document.getElementById('progressContainer');
             const progressFill = document.getElementById('progressFill');
-            const stage1 = document.getElementById('stage1');
-            const stage2 = document.getElementById('stage2');
-            const stage3 = document.getElementById('stage3');
             const progressText = document.getElementById('progressText');
 
             // Show progress container
@@ -566,34 +558,12 @@
 
             // Reset states
             progressFill.style.width = '0%';
-            stage1.classList.remove('active', 'completed');
-            stage2.classList.remove('active', 'completed');
-            stage3.classList.remove('active', 'completed');
 
-            // Stage 1: Research (0-33%)
+            // Simple progress animation
             setTimeout(() => {
-                stage1.classList.add('active');
-                progressText.textContent = '🔍 Gemini is researching...';
-                progressFill.style.width = '33%';
-            }, 100);
-
-            // Stage 2: Analysis (33-66%)
-            setTimeout(() => {
-                stage1.classList.remove('active');
-                stage1.classList.add('completed');
-                stage2.classList.add('active');
-                progressText.textContent = '🧠 GPT is analyzing...';
-                progressFill.style.width = '66%';
-            }, 1500);
-
-            // Stage 3: Response (66-100%)
-            setTimeout(() => {
-                stage2.classList.remove('active');
-                stage2.classList.add('completed');
-                stage3.classList.add('active');
-                progressText.textContent = '🎓 Crafting your response...';
+                progressText.textContent = '🤖 Jeff is thinking...';
                 progressFill.style.width = '100%';
-            }, 3000);
+            }, 100);
         }
 
         function hideProgress() {

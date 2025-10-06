@@ -506,155 +506,44 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     console.log(`🔍 Cache MISS - Making API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses`);
 
     // ========================================
-    // JEFF 5.0: MULTI-AGENT PIPELINE
+    // JEFF 5.0: GPT-4o-mini POWERED
     // ========================================
-    // Step 1: Gemini researches
-    // Step 2: GPT-4o-mini analyzes and adds personality
-    // Step 3: Final NaviGrad integration
+    // Single GPT-4o-mini agent handles everything
     // ========================================
 
-    console.log('🤖 [Agent 1/3] Gemini Research Agent starting...');
+    console.log('🤖 Jeff is thinking...');
 
-    // Initialize the model with function calling enabled
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      tools: [{ functionDeclarations: [fetchWebPageDeclaration] }]
+    // Build conversation messages with history
+    const messages = [
+      {
+        role: 'system',
+        content: JEFF_SYSTEM_PROMPT
+      }
+    ];
+
+    // Add conversation history (last 3 messages for context)
+    validatedHistory.slice(-6).forEach(msg => {
+      messages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content
+      });
     });
 
-    // Build conversation context for Gemini (Research Agent)
-    let geminiPrompt = `You are a research agent for NaviGrad, a platform focused on ONTARIO and CANADIAN post-secondary education.
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: sanitizedMessage
+    });
 
-CRITICAL - ONTARIO/CANADA FOCUS:
-- NaviGrad is specifically for ONTARIO students and CANADIAN universities
-- ONLY provide information about Ontario/Canadian schools, programs, and education systems
-- If asked about non-Canadian universities, note that NaviGrad focuses on Ontario/Canada
-- All tuition, admission requirements, and programs should be CANADIAN standards
-- Reference Ontario high school system (Grade 12, OSSD, etc.) NOT American systems (SAT, GPA, etc.)
-
-TASK: Gather factual information about: "${sanitizedMessage}"
-
-CONVERSATION HISTORY:
-${validatedHistory.slice(-3).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-
-INSTRUCTIONS:
-- Use the fetchWebPage function to get current information if needed
-- Gather facts, details, and relevant data about ONTARIO/CANADIAN education
-- Don't add personality or formatting yet - that comes later
-- Be thorough and accurate
-- Return raw research findings in JSON format: { "research": "your findings here", "sources": ["url1", "url2"] }`;
-
-    // Generate Gemini research response with function calling support
-    let geminiResearch;
-    let functionCallAttempts = 0;
-    const maxFunctionCalls = 3; // Prevent infinite loops
-
-    while (functionCallAttempts < maxFunctionCalls) {
-      try {
-        const result = await model.generateContent(geminiPrompt);
-        const response = result.response;
-
-        // Check if there are function calls
-        const functionCalls = response.functionCalls;
-
-        if (functionCalls && functionCalls.length > 0) {
-          functionCallAttempts++;
-
-          // Execute all function calls
-          const functionResponses = await Promise.all(
-            functionCalls.map(async (call) => {
-              if (call.name === 'fetchWebPage') {
-                const webResult = await fetchWebPage(call.args.url);
-                return {
-                  name: call.name,
-                  response: webResult
-                };
-              }
-              return null;
-            })
-          );
-
-          // Continue conversation with function results
-          geminiPrompt += `\n\nFUNCTION RESULTS:\n${JSON.stringify(functionResponses, null, 2)}\n\nNow provide your final research in JSON format:`;
-          continue; // Loop again with function results
-        }
-
-        // No function calls, process the text response
-        let text = response.text();
-
-        // Try to parse JSON response
-        try {
-          // Remove markdown code blocks if present
-          text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          geminiResearch = JSON.parse(text);
-          break; // Success, exit loop
-        } catch (e) {
-          // If JSON parsing fails, use text as research
-          geminiResearch = {
-            research: text,
-            sources: []
-          };
-          break;
-        }
-      } catch (error) {
-        throw error;
-      }
-    }
-
-    if (!geminiResearch) {
-      geminiResearch = {
-        research: "Unable to gather research data.",
-        sources: []
-      };
-    }
-
-    console.log('✅ [Agent 1/3] Gemini Research completed');
-    console.log('🧠 [Agent 2/3] GPT-4o-mini Analysis Agent starting...');
-
-    // ========================================
-    // STEP 2: GPT-4o-mini analyzes and adds personality
-    // ========================================
-
+    // Call GPT-4o-mini
     const gptResponse = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `${JEFF_SYSTEM_PROMPT}\n\nYour task: Take research data and transform it into a helpful, friendly response for an ONTARIO student about CANADIAN education.`
-        },
-        {
-          role: 'user',
-          content: `User asked: "${sanitizedMessage}"
-
-RESEARCH DATA:
-${JSON.stringify(geminiResearch, null, 2)}
-
-CONVERSATION HISTORY:
-${validatedHistory.slice(-3).map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-
-🍁 CRITICAL REMINDER - ONTARIO/CANADA ONLY 🍁
-- ONLY discuss Ontario/Canadian universities and colleges
-- Use Ontario/Canadian standards (percentages, OSSD, Grade 12, etc.)
-- Tuition in CAD, admission based on Ontario system
-- If research mentions American schools, redirect to Canadian equivalents
-- NEVER use American terminology (GPA, SAT, ACT)
-
-Transform this research into a friendly, well-formatted response:
-- Use **bold** for important terms
-- Format as bullet points where appropriate
-- Add personality and encouragement
-- Keep it concise and student-friendly
-- Reference the conversation history if relevant
-- Ensure ALL content is Ontario/Canada-focused
-
-Respond in JSON format: { "message": "your response", "link": { "url": "optional_url", "name": "link name", "text": "button text" } }`
-        }
-      ],
+      messages: messages,
       temperature: 0.7,
       max_tokens: 500
     });
 
-    console.log('✅ [Agent 2/3] GPT Analysis completed');
-    console.log('🎓 [Agent 3/3] NaviGrad Integration starting...');
+    console.log('✅ Jeff responded successfully!');
 
     // Parse GPT response
     let gptContent = gptResponse.choices[0].message.content;
@@ -677,9 +566,6 @@ Respond in JSON format: { "message": "your response", "link": { "url": "optional
       jsonResponse.message = "I've gathered some information for you, but I'm having trouble formatting it. Please try rephrasing your question!";
     }
 
-    console.log('✅ [Agent 3/3] NaviGrad Integration completed');
-    console.log('🎉 Multi-agent pipeline finished successfully!');
-
     // Save successful response to cache
     responseCache.set(cacheKey, jsonResponse);
     cacheStats.saves++;
@@ -688,7 +574,7 @@ Respond in JSON format: { "message": "your response", "link": { "url": "optional
     res.json(jsonResponse);
 
   } catch (error) {
-    console.error('Multi-agent pipeline error:', error);
+    console.error('Jeff error:', error);
 
     // Check for specific error types
     if (error.message && error.message.includes('429')) {
