@@ -533,7 +533,7 @@ LINK RULES - CRITICAL FOR NAVIGRAD ASSISTANT:
 Available NaviGrad Resources:
 ${JSON.stringify(navigradData, null, 2)}
 
-Response Format:
+Response Format - CRITICAL:
 {
   "message": "Your friendly, conversational response that references previous conversation context when relevant",
   "link": {
@@ -543,7 +543,14 @@ Response Format:
   }
 }
 
-IMPORTANT: 
+🚫 NEVER INCLUDE LINKS IN YOUR MESSAGE TEXT! 🚫
+- DO NOT use markdown links like [text](url) in your message
+- DO NOT put URLs in your message text
+- ONLY use the separate "link" field in the JSON response
+- The link will be displayed as a beautiful button below your message
+- Keep links SEPARATE from message content
+
+IMPORTANT:
 - If no link is needed, set "link" to null
 - You can answer general knowledge questions without providing a link
 - Only provide links when they genuinely help the student take their next step
