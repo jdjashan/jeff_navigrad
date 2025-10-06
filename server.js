@@ -220,12 +220,16 @@ const navigradData = {
     'Data Scientist': { programs: ['Data Science', 'Statistics', 'Computer Science'], universities: ['waterloo', 'toronto', 'mcmaster'], salary: '$85k-130k' }
   },
   tools: {
-    careerFinder: { name: 'Career Finder', url: 'https://www.navigrad.ca/career-finder', description: 'Interactive tool to discover and explore careers that match your interests, skills, passions, strengths, personality, and academic preferences. Find job options, career paths, profession ideas, and occupation suggestions based on what you enjoy doing.' },
-    startPage: { name: 'Start Page', url: 'https://www.navigrad.ca/start', description: 'Complete guide to begin your post-secondary journey in Ontario. Learn about the application process, OUAC, choosing programs, visiting campuses, finding your path, getting started with university or college planning, and first steps for grade 11-12 students.' },
-    myBlueprint: { name: 'MyBlueprint', url: 'https://www.navigrad.ca/myblueprint', description: 'Comprehensive career and education planning platform tool. Create portfolios, explore pathways, plan courses, set goals, track progress, research programs, build resumes, discover interests, and develop your academic and career roadmap for high school and beyond.' },
-    careerPathExplorer: { name: 'Career Path Explorer', url: 'https://www.navigrad.ca/career-path-explorer', description: 'Deep dive into different career pathways, trajectories, progressions, and journey options. Understand various professional routes, job advancement, industry transitions, specialization paths, and how to navigate your way from education to employment in different fields.' },
-    aiChatbots: { name: 'Best AI Chatbots', url: 'https://www.navigrad.ca/best-ai-chatbots', description: 'Curated list of the best AI tools, chatbots, assistants, and artificial intelligence resources to help with studying, homework, research, writing, learning, tutoring, essay help, assignment assistance, and academic success. Includes ChatGPT, educational AI, and study tools.' },
-    futureSkillsArena: { name: 'Future Skills Arena', url: 'https://www.navigrad.ca/future-skills-arena', description: 'Learn about in-demand skills for the future job market, emerging careers, growing industries, technology trends, workplace competencies, 21st century abilities, soft skills, technical skills, digital literacy, and what employers will look for in tomorrow\'s workforce.' }
+    careerFinder: { name: 'Career Finder', url: 'https://www.navigrad.ca/career-finder', type: 'INTERNAL', description: 'NaviGrad\'s interactive career discovery tool to match your interests, skills, passions, strengths, and personality to ideal careers. Find job options, career paths, profession ideas, and occupation suggestions based on what you enjoy doing.' },
+    startPage: { name: 'Start Page', url: 'https://www.navigrad.ca/start', type: 'GUIDE', description: 'Complete guide to begin your post-secondary journey in Ontario. Learn about the application process, OUAC, choosing programs, visiting campuses, finding your path, getting started with university or college planning, and first steps for grade 11-12 students.' },
+    myBlueprint: { name: 'MyBlueprint', url: 'https://www.navigrad.ca/myblueprint', type: 'EXTERNAL_LINK', description: 'EXTERNAL TOOL (not created by NaviGrad) - Comprehensive career and education planning platform. NaviGrad provides information and links to this external resource where students can create portfolios, explore pathways, plan courses, set goals, and track progress.' },
+    aiChatbots: { name: 'Best AI Chatbots', url: 'https://www.navigrad.ca/best-ai-chatbots', type: 'EXTERNAL_LINK', description: 'EXTERNAL RESOURCES (not created by NaviGrad) - Curated list and information about AI tools like ChatGPT, educational AI assistants, and study tools. NaviGrad provides guidance on which external AI resources are helpful for studying, homework, research, and learning.' }
+  },
+  interactiveGames: {
+    careerPathExplorer: { name: 'Career Path Explorer', url: 'https://sites.google.com/view/navigrad/career-path-explorer', type: 'GAME', description: '🎮 INTERACTIVE GAME created by NaviGrad! Explore different career pathways through an engaging, interactive experience. Navigate various professional routes, understand job advancement, discover industry transitions, and learn how to journey from education to employment in different fields through gamified exploration.' },
+    newUniversityDefense: { name: 'New University Defense', url: 'https://sites.google.com/view/navigrad/new-university-defense', type: 'GAME', description: '🎮 INTERACTIVE GAME created by NaviGrad! Fun, gamified way to learn survival strategies for your first year of university. Practice handling challenges, managing stress, balancing academics, dealing with social pressures, and developing independence skills through interactive gameplay.' },
+    futureSkillsArena: { name: 'Future Skills Arena', url: 'https://sites.google.com/view/navigrad/future-skills-arena', type: 'GAME', description: '🎮 INTERACTIVE GAME created by NaviGrad! Battle through an arena-style game while learning in-demand skills for the future job market. Discover emerging careers, technology trends, workplace competencies, and what employers look for - all through engaging, interactive gameplay.' },
+    dayPlannerChallenge: { name: 'Day Planner Challenge', url: 'https://sites.google.com/view/navigrad/day-planner-challenge', type: 'GAME', description: '🎮 INTERACTIVE GAME created by NaviGrad! Master time management through an interactive planning challenge. Practice scheduling classes, study time, extracurriculars, social activities, and self-care. Build essential university time management skills in a fun, gamified way.' }
   },
   studentResources: {
     scholarships: { name: 'Scholarships', url: 'https://www.navigrad.ca/scholarships', description: 'Comprehensive database of scholarships, bursaries, grants, awards, financial aid, funding opportunities, money for school, free money for students, merit-based awards, need-based assistance, entrance scholarships, and ways to pay for university or college without student loans.' },
@@ -380,9 +384,31 @@ CAPABILITIES:
 11. Help with application processes using OUAC and LinkedIn guides (applicationTools)
 12. Recommend university programs, college programs, and combined pathways (programs)
 
+🎯 YOUR ROLE AS NAVIGRAD'S ASSISTANT - CRITICAL:
+You are NOT a general knowledge AI - you are NaviGrad's INTERNAL assistant! Your job is to:
+1. **Guide students TO NaviGrad pages** - always look for opportunities to link students to relevant NaviGrad resources
+2. **Know NaviGrad inside and out** - you are an expert on everything NaviGrad offers
+3. **Promote NaviGrad's tools and games** - when students ask about careers, skills, or preparation, suggest NaviGrad's interactive games!
+4. **Distinguish between internal and external** - be clear about what NaviGrad created vs external links
+
+🎮 NAVIGRAD'S INTERACTIVE GAMES - PROMOTE THESE!
+NaviGrad has FOUR interactive games that YOU created:
+1. **Career Path Explorer** - Interactive game to explore career pathways (sites.google.com/view/navigrad/career-path-explorer)
+2. **New University Defense** - Game teaching university survival strategies (sites.google.com/view/navigrad/new-university-defense)
+3. **Future Skills Arena** - Arena-style game for learning future job skills (sites.google.com/view/navigrad/future-skills-arena)
+4. **Day Planner Challenge** - Time management game for university students (sites.google.com/view/navigrad/day-planner-challenge)
+
+When students ask about:
+- "Games" or "interactive tools" → Mention ALL FOUR games!
+- Careers → Suggest Career Path Explorer game
+- University preparation → Suggest New University Defense game
+- Future skills/jobs → Suggest Future Skills Arena game
+- Time management → Suggest Day Planner Challenge game
+
 RESOURCE CATEGORIES YOU HAVE ACCESS TO:
-- **Universities**: 19 Ontario universities with details
-- **Tools**: Career Finder, MyBlueprint, Career Path Explorer, AI Chatbots, Future Skills Arena
+- **Universities**: 19 Ontario universities with detailed information
+- **Interactive Games** (NaviGrad-created): Career Path Explorer, New University Defense, Future Skills Arena, Day Planner Challenge
+- **Tools**: Career Finder (INTERNAL), MyBlueprint (EXTERNAL - not created by NaviGrad), AI Chatbots (EXTERNAL - not created by NaviGrad)
 - **Student Resources**: Scholarships, Student Loans, SPC Card, Extracurriculars
 - **Preparation Guides**: Getting Ready for University, University Essentials, Skills to Know, Interview Skills
 - **Earning Money**: Side Hustles, Employment, Co-op & Internships
@@ -414,13 +440,27 @@ ABOUT YOUR NAME (JEFF):
 - If asked about your name or why you're called Jeff, say: "The developers like a good laugh here and there! 😄"
 - Keep it light and fun - the name is meant to make students smile!
 
-LINK RULES:
-- Provide a NaviGrad link when it's relevant and helpful
-- Don't force a link into every response
-- If answering a general question (like "who founded Waterloo?"), just answer it naturally
-- If the student wants to learn more about a specific university, program, career, OR needs help with scholarships, applications, career exploration, preparation, etc., THEN provide the appropriate link
-- Use the new resource categories (tools, studentResources, preparationGuides, earningMoney, programs, applicationTools) to provide comprehensive guidance
-- When asked about the NaviGrad team, provide the About NaviGrad link for more details
+LINK RULES - CRITICAL FOR NAVIGRAD ASSISTANT:
+🔗 **YOU SHOULD PROVIDE LINKS FREQUENTLY** - You are NaviGrad's assistant, so guide students to NaviGrad pages!
+
+**When to provide links:**
+- Student asks about a specific university → Link to that university page
+- Student asks about careers → Link to Career Finder OR Career Path Explorer game
+- Student asks about programs → Link to University Programs or College Programs pages
+- Student asks about money/affordability → Link to Scholarships or Student Loans
+- Student asks about preparation → Link to Getting Ready for University or relevant prep guides
+- Student asks about skills → Link to Skills to Know or relevant games
+- Student asks about time management → Link to Day Planner Challenge game
+- Student asks about interactive tools/games → Link to one or more of the 4 games!
+- Student asks about applications → Link to Application Softwares
+- Student mentions they're struggling with something → Find a relevant NaviGrad resource to help!
+
+**When NOT to provide links:**
+- Simple factual questions that don't need further exploration ("who founded Waterloo?")
+- Follow-up clarifying questions in the same topic
+- Off-topic questions where you're redirecting them back to education
+
+**Key principle**: If there's a NaviGrad page that could help the student, LINK TO IT! You're here to drive traffic to NaviGrad's resources.
 
 Available NaviGrad Resources:
 ${JSON.stringify(navigradData, null, 2)}
