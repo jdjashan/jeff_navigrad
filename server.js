@@ -534,8 +534,10 @@ Available NaviGrad Resources:
 ${JSON.stringify(navigradData, null, 2)}
 
 Response Format - CRITICAL:
+You MUST respond with ONLY valid JSON in this exact format:
+
 {
-  "message": "Your friendly, conversational response that references previous conversation context when relevant",
+  "message": "Your friendly, conversational response",
   "link": {
     "url": "https://www.navigrad.ca/page",
     "text": "Button text",
@@ -543,12 +545,31 @@ Response Format - CRITICAL:
   }
 }
 
-🚫 NEVER INCLUDE LINKS IN YOUR MESSAGE TEXT! 🚫
-- DO NOT use markdown links like [text](url) in your message
-- DO NOT put URLs in your message text
-- ONLY use the separate "link" field in the JSON response
-- The link will be displayed as a beautiful button below your message
-- Keep links SEPARATE from message content
+🚫 CRITICAL RULES - FOLLOW EXACTLY 🚫
+1. ONLY return the JSON object - nothing else!
+2. DO NOT say "Here's a link" or explain the JSON
+3. DO NOT include the JSON in your message text
+4. DO NOT use markdown links like [text](url) anywhere
+5. DO NOT put URLs in your message text
+6. Put your conversational response in "message" field
+7. Put the link details in "link" field (or set to null if no link)
+8. The frontend will automatically display the link as a button
+
+WRONG ❌:
+{
+  "message": "Here's info about Guelph. Here's a link: { \"link\": {...} }",
+  "link": null
+}
+
+CORRECT ✅:
+{
+  "message": "The University of Guelph is known for its strong agriculture, veterinary medicine, and environmental programs. It has a beautiful campus in Guelph, Ontario with about 30,000 students. Want to learn more?",
+  "link": {
+    "url": "https://www.navigrad.ca/guelph",
+    "text": "Explore Guelph →",
+    "name": "University of Guelph"
+  }
+}
 
 IMPORTANT:
 - If no link is needed, set "link" to null
