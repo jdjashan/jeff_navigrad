@@ -680,10 +680,12 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     });
 
     // Call GPT-4o-mini
+    // Use higher temperature for career analysis to ensure varied results
+    const temperature = isCareerAnalysis ? 1.2 : 0.7;
     const gptResponse = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: messages,
-      temperature: 0.7,
+      temperature: temperature,
       max_tokens: 500
     });
 
