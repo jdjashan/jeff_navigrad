@@ -627,15 +627,23 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     // Validate and sanitize conversation history
     const validatedHistory = validateConversationHistory(conversationHistory);
 
+    // Check if this is a career analysis request (should never be cached)
+    const isCareerAnalysis = sanitizedMessage.includes('CAREER ANALYSIS REQUEST') ||
+                            sanitizedMessage.includes('Career Path Explorer quiz');
+
     // Generate cache key
     const cacheKey = generateCacheKey(sanitizedMessage, validatedHistory);
 
-    // Check cache first
-    const cachedResponse = responseCache.get(cacheKey);
-    if (cachedResponse) {
-      cacheStats.hits++;
-      console.log(`💾 Cache HIT - Saved API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses, ${((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(1)}% hit rate`);
-      return res.json(cachedResponse);
+    // Check cache first (but skip for career analysis - needs fresh AI analysis each time)
+    if (!isCareerAnalysis) {
+      const cachedResponse = responseCache.get(cacheKey);
+      if (cachedResponse) {
+        cacheStats.hits++;
+        console.log(`💾 Cache HIT - Saved API call | Stats: ${cacheStats.hits} hits, ${cacheStats.misses} misses, ${((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(1)}% hit rate`);
+        return res.json(cachedResponse);
+      }
+    } else {
+      console.log(`🎯 Career Analysis Request - Bypassing cache for fresh AI analysis`);
     }
 
     cacheStats.misses++;
@@ -702,10 +710,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       jsonResponse.message = "I've gathered some information for you, but I'm having trouble formatting it. Please try rephrasing your question!";
     }
 
-    // Save successful response to cache
-    responseCache.set(cacheKey, jsonResponse);
-    cacheStats.saves++;
-    console.log(`💾 Cached response | Total cached: ${responseCache.keys().length} responses`);
+    // Save successful response to cache (but not career analysis - they should be unique every time)
+    if (!isCareerAnalysis) {
+      responseCache.set(cacheKey, jsonResponse);
+      cacheStats.saves++;
+      console.log(`💾 Cached response | Total cached: ${responseCache.keys().length} responses`);
+    } else {
+      console.log(`🎯 Career Analysis complete - NOT caching (ensures unique results each time)`);
+    }
 
     res.json(jsonResponse);
 
