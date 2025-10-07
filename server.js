@@ -702,21 +702,32 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     let gptContent = gptResponse.choices[0].message.content;
     let jsonResponse;
 
-    try {
-      // Remove markdown code blocks if present
-      gptContent = gptContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      jsonResponse = JSON.parse(gptContent);
-    } catch (e) {
-      // If JSON parsing fails, create a simple response
+    // Special handling for career analysis - AI returns JSON array directly
+    if (isCareerAnalysis) {
+      // For career analysis, just pass through the raw content
+      // The frontend will parse the JSON array itself
       jsonResponse = {
         message: gptContent,
         link: null
       };
-    }
+    } else {
+      // Normal Jeff responses - parse as {message, link} object
+      try {
+        // Remove markdown code blocks if present
+        gptContent = gptContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        jsonResponse = JSON.parse(gptContent);
+      } catch (e) {
+        // If JSON parsing fails, create a simple response
+        jsonResponse = {
+          message: gptContent,
+          link: null
+        };
+      }
 
-    // Ensure response has required structure
-    if (!jsonResponse.message) {
-      jsonResponse.message = "I've gathered some information for you, but I'm having trouble formatting it. Please try rephrasing your question!";
+      // Ensure response has required structure
+      if (!jsonResponse.message) {
+        jsonResponse.message = "I've gathered some information for you, but I'm having trouble formatting it. Please try rephrasing your question!";
+      }
     }
 
     // Save successful response to cache (but not career analysis - they should be unique every time)
